@@ -4,12 +4,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
-import java.text.SimpleDateFormat;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 
 @Service
@@ -25,13 +23,23 @@ public class DurationService {
         logger.debug(new StringBuilder("parsed datetime values | ").append("start=").append(start).
                 append(" end=").append(end).toString());
 
-        long forgoneStartTime = calculateForgoneStartTime(start);
-        long forgoneEndTime = calculateForgoneEndTime(end);
+        long maxTimeFromStart = calculateMaxIntervalFromStart(start);
+        long maxTimeToEnd = calculateMaxIntervalToEnd(end);
 
-        long duration = -forgoneStartTime -forgoneEndTime;
+        long duration = 0;
 
-        for(LocalDateTime date = start; date.isBefore(end) || date.isEqual(end); date = date.plusDays(1).withHour(0)){
-            duration += isBusinessDay(date.toLocalDate()) ? BUSINESS_SECONDS_DURATION : 0;
+        if(isBusinessDay(start.toLocalDate())){
+            duration += maxTimeFromStart;
+            if(start.toLocalDate().isEqual(end.toLocalDate())){
+                duration -= BUSINESS_SECONDS_DURATION;
+            }
+        }
+        if(isBusinessDay(end.toLocalDate())){
+            duration += maxTimeToEnd;
+        }
+        logger.debug(new StringBuilder("duration=").append(duration).toString());
+        for(LocalDate date = start.toLocalDate().plusDays(1); date.isBefore(end.toLocalDate()); date = date.plusDays(1)){
+            duration += isBusinessDay(date) ? BUSINESS_SECONDS_DURATION : 0;
             logger.debug(new StringBuilder("for date=").append(date).toString());
         }
 
@@ -45,21 +53,17 @@ public class DurationService {
     private boolean isBusinessDay(LocalDate date) {
         DayOfWeek dayOfWeek = date.getDayOfWeek();
         boolean isBusinessDay = dayOfWeek != DayOfWeek.SATURDAY && dayOfWeek != DayOfWeek.SUNDAY ;
-//        isBusinessDay = isBusinessDay && !isNationalHolidayObserved(date);
+        isBusinessDay = isBusinessDay && !isNationalHolidayObserved(date);
         return isBusinessDay;
     }
 
     private boolean isNationalHolidayObserved(LocalDate localDate) {
-        boolean observed;
-//        if(localDate.getDayOfWeek() == DayOfWeek.MONDAY){
-//            observed = holidayObservedMonday(localDate.minusDays(1));
-//        }
-        observed = NationalPublicHoliday.isPublicHoliday(new NationalPublicHoliday(localDate.getMonthValue(), localDate.getDayOfMonth()));
+        boolean observed = false;
+        if(localDate.getDayOfWeek() == DayOfWeek.MONDAY){
+            observed = NationalPublicHoliday.isPublicHoliday(localDate.minusDays(1));
+        }
+        observed = observed || NationalPublicHoliday.isPublicHoliday(localDate);
         return observed;
-    }
-
-    private boolean holidayObservedMonday(LocalDate localDate){
-        return isNationalHolidayObserved(localDate);
     }
 
     private boolean isBusinessTime(LocalDateTime dateTime) {
@@ -68,16 +72,16 @@ public class DurationService {
         return !isBeforeBusinessHours && !isAfterBusinessHours;
     }
 
-    private long calculateForgoneStartTime(LocalDateTime dateTime) {
-        long forgoneTime = LocalTime.of(8,0,0).until(dateTime.toLocalTime(), ChronoUnit.SECONDS);
-        logger.debug(new StringBuilder("calculating start time offset=").append(forgoneTime).toString());
-        return forgoneTime < 0 || forgoneTime >= BUSINESS_SECONDS_DURATION ? 0 : forgoneTime;
+    private long calculateMaxIntervalFromStart(LocalDateTime dateTime) {
+        long maxStartInterval =dateTime.toLocalTime().until(LocalTime.of(17,0,0), ChronoUnit.SECONDS);
+        logger.debug(new StringBuilder("calculating max start time interval=").append(maxStartInterval).toString());
+        return maxStartInterval < 0 ? 0 : (maxStartInterval >= BUSINESS_SECONDS_DURATION ? BUSINESS_SECONDS_DURATION : maxStartInterval);
     }
 
-    private long calculateForgoneEndTime(LocalDateTime dateTime) {
-        long forgoneTime =dateTime.toLocalTime().until(LocalTime.of(17,0,0), ChronoUnit.SECONDS);
-        logger.debug(new StringBuilder("calculating end time offset=").append(forgoneTime).toString());
-        return forgoneTime < 0 || forgoneTime >= BUSINESS_SECONDS_DURATION ? 0 : forgoneTime;
+    private long calculateMaxIntervalToEnd(LocalDateTime dateTime) {
+        long maxEndInterval = LocalTime.of(8,0,0).until(dateTime.toLocalTime(), ChronoUnit.SECONDS);
+        logger.debug(new StringBuilder("calculating max end time interval=").append(maxEndInterval).toString());
+        return maxEndInterval < 0 ? 0 : (maxEndInterval >= BUSINESS_SECONDS_DURATION ? BUSINESS_SECONDS_DURATION : maxEndInterval);
     }
 
 }
