@@ -15,3 +15,4 @@ From the project root, execute `./mvnw spring-boot:run`.
 ###how to use api
 * <b>url:</b> http://{host_name}:8081/duration (eg. http://localhost:8081/duration)
 * <b>expected request format:</b> http://{host_name}:8081/duration?start_time={start_time}&end_time={end_time}
+    * <b> dates in iso-8601 format e.g.: 2020-04-27T07:58:30.996
