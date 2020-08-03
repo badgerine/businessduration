@@ -114,6 +114,14 @@ public class DurationServiceTest {
     }
 
     @Test
+    void testCalculateTwoDaysStaggeredTimes3() {
+        String startTime = "2020-04-14T18:00:00";
+        String endTime = "2020-04-15T14:00:00";
+
+        assertThat(durationService.calculate(startTime,endTime)).isEqualTo(21600l);
+    }
+
+    @Test
     void testCalculateThreeDaysStaggeredTimes1() {
         String startTime = "2020-04-14T15:00:00";
         String endTime = "2020-04-16T09:00:00";
